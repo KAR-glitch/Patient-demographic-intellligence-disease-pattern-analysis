@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Power BI Data Model – Patient Healthcare Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0D1B3E;--blue:#1A3A6B;--mid:#2563EB;--sky:#38BDF8;
+  --gold:#F59E0B;--coral:#F97316;--mint:#10B981;--violet:#8B5CF6;
+  --rose:#F43F5E;--teal:#0EA5E9;--indigo:#6366F1;
+  --white:#FFFFFF;--off:#F0F4FF;--dim:#94A3B8;--dark:#0A0F1E;
+}
+
+body{
+  background:var(--dark);
+  font-family:'Space Grotesk',sans-serif;
+  color:var(--white);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ─── CANVAS ─────────────────────────────────────────── */
+.poster{
+  width:1400px;
+  margin:0 auto;
+  padding:40px;
+  position:relative;
+}
+
+/* animated grid bg */
+.grid-bg{
+  position:fixed;inset:0;z-index:0;
+  background-image:
+    linear-gradient(rgba(37,99,235,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,0.07) 1px, transparent 1px);
+  background-size:60px 60px;
+  animation:gridPan 20s linear infinite;
+}
+@keyframes gridPan{from{background-position:0 0}to{background-position:60px 60px}}
+
+/* glowing orbs */
+.orb{position:fixed;border-radius:50%;filter:blur(120px);opacity:.18;animation:orb 8s ease-in-out infinite alternate;}
+.orb1{width:600px;height:600px;background:var(--mid);top:-100px;left:-100px;animation-delay:0s;}
+.orb2{width:500px;height:500px;background:var(--violet);top:50%;right:-100px;animation-delay:3s;}
+.orb3{width:400px;height:400px;background:var(--sky);bottom:-50px;left:30%;animation-delay:5s;}
+@keyframes orb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.3) translate(30px,-20px)}}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.header{
+  position:relative;z-index:10;
+  text-align:center;
+  margin-bottom:48px;
+  padding:32px;
+  background:linear-gradient(135deg,rgba(13,27,62,.95),rgba(26,58,107,.8));
+  border:1px solid rgba(56,189,248,.25);
+  border-radius:20px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 0 60px rgba(37,99,235,.3),inset 0 1px 0 rgba(255,255,255,.1);
+}
+.header::before{
+  content:'';position:absolute;inset:-1px;border-radius:21px;
+  background:linear-gradient(135deg,rgba(56,189,248,.5),rgba(139,92,246,.3),rgba(37,99,235,.4));
+  z-index:-1;
+}
+.proj-badge{
+  display:inline-block;
+  padding:4px 16px;
+  background:rgba(56,189,248,.15);
+  border:1px solid rgba(56,189,248,.4);
+  border-radius:100px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:3px;color:var(--sky);
+  text-transform:uppercase;margin-bottom:16px;
+}
+.header h1{
+  font-family:'Playfair Display',serif;
+  font-size:42px;font-weight:900;
+  background:linear-gradient(135deg,#FFFFFF 0%,#38BDF8 50%,#818CF8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  line-height:1.15;margin-bottom:10px;
+}
+.header p{color:var(--dim);font-size:14px;letter-spacing:.5px;}
+.stats-row{
+  display:flex;justify-content:center;gap:40px;
+  margin-top:24px;padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.stat{text-align:center;}
+.stat-val{font-size:26px;font-weight:700;color:var(--sky);}
+.stat-lbl{font-size:11px;color:var(--dim);letter-spacing:.5px;margin-top:2px;}
+
+/* ─── SCHEMA AREA ────────────────────────────────────── */
+.schema{
+  position:relative;z-index:10;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:32px;
+}
+
+/* SVG connector layer */
+.connector-layer{
+  position:absolute;
+  top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:5;
+}
+
+/* rows layout */
+.row{display:flex;gap:24px;justify-content:center;align-items:flex-start;width:100%;}
+.row-top{gap:36px;}
+
+/* ─── TABLE CARDS ────────────────────────────────────── */
+.tbl{
+  position:relative;z-index:10;
+  border-radius:14px;
+  overflow:hidden;
+  background:rgba(13,27,62,.9);
+  backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  transition:transform .3s ease, box-shadow .3s ease;
+  width:200px;
+  flex-shrink:0;
+}
+.tbl:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 20px 60px rgba(0,0,0,.5);}
+
+.tbl-header{
+  padding:11px 14px;
+  display:flex;align-items:center;gap:8px;
+  position:relative;
+}
+.tbl-icon{
+  width:28px;height:28px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+}
+.tbl-name{font-size:11px;font-weight:700;letter-spacing:.3px;line-height:1.2;}
+.tbl-sub{font-size:9px;color:rgba(255,255,255,.6);letter-spacing:.3px;margin-top:1px;}
+
+.tbl-body{padding:0 0 8px;}
+.field{
+  display:flex;align-items:center;gap:7px;
+  padding:4px 14px;
+  font-size:10.5px;
+  color:rgba(255,255,255,.75);
+  border-left:2px solid transparent;
+  transition:background .2s,border-color .2s;
+  cursor:default;
+}
+.field:hover{background:rgba(255,255,255,.05);border-left-color:var(--sky);color:#fff;}
+.field-tag{
+  font-family:'JetBrains Mono',monospace;
+  font-size:8.5px;
+  padding:1px 5px;border-radius:3px;
+  flex-shrink:0;font-weight:600;
+}
+.pk{background:rgba(245,158,11,.2);color:var(--gold);border:1px solid rgba(245,158,11,.4);}
+.fk{background:rgba(37,99,235,.2);color:#93C5FD;border:1px solid rgba(37,99,235,.4);}
+.at{background:rgba(16,185,129,.15);color:#6EE7B7;border:1px solid rgba(16,185,129,.3);}
+.sep{height:1px;background:rgba(255,255,255,.07);margin:4px 0;}
+
+/* FACT table – special */
+.tbl.fact{width:240px;border-width:2px;}
+.tbl.fact .tbl-header{padding:14px 16px;}
+.tbl.fact .field{padding:4.5px 16px;font-size:11px;}
+
+/* colour themes */
+.theme-fact  .tbl-header{background:linear-gradient(135deg,#1E40AF,#1D4ED8);}
+.theme-fact  {border-color:rgba(56,189,248,.5);box-shadow:0 0 40px rgba(37,99,235,.3);}
+
+.theme-date  .tbl-header{background:linear-gradient(135deg,#065F46,#047857);}
+.theme-date  {border-color:rgba(16,185,129,.4);}
+
+.theme-hosp  .tbl-header{background:linear-gradient(135deg,#6D28D9,#7C3AED);}
+.theme-hosp  {border-color:rgba(139,92,246,.4);}
+
+.theme-dis   .tbl-header{background:linear-gradient(135deg,#9D174D,#BE185D);}
+.theme-dis   {border-color:rgba(244,63,94,.4);}
+
+.theme-doc   .tbl-header{background:linear-gradient(135deg,#92400E,#B45309);}
+.theme-doc   {border-color:rgba(245,158,11,.4);}
+
+.theme-ins   .tbl-header{background:linear-gradient(135deg,#0C4A6E,#075985);}
+.theme-ins   {border-color:rgba(14,165,233,.4);}
+
+.theme-pat   .tbl-header{background:linear-gradient(135deg,#134E4A,#0F766E);}
+.theme-pat   {border-color:rgba(20,184,166,.4);}
+
+.theme-meas  .tbl-header{background:linear-gradient(135deg,#374151,#4B5563);}
+.theme-meas  {border-color:rgba(107,114,128,.4);width:180px;}
+
+/* ─── RELATIONSHIP LINES (SVG inline) ───────────────── */
+svg.rel-svg{display:block;position:relative;z-index:6;pointer-events:none;}
+.rel-line{stroke-width:2;fill:none;stroke-dasharray:1000;stroke-dashoffset:1000;animation:drawLine 1.5s ease forwards;}
+@keyframes drawLine{to{stroke-dashoffset:0}}
+.rel-dot{animation:pop .3s ease forwards;opacity:0;}
+@keyframes pop{to{opacity:1;transform:scale(1);}}
+
+/* ─── LEGEND ─────────────────────────────────────────── */
+.legend{
+  position:relative;z-index:10;
+  display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:center;
+  padding:24px 32px;
+  background:rgba(13,27,62,.8);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  margin-top:32px;
+}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);}
+.legend-swatch{width:12px;height:12px;border-radius:2px;}
+
+/* ─── RELATIONSHIP LABEL PILLS ───────────────────────── */
+.rel-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:100px;
+  font-size:9.5px;font-weight:600;font-family:'JetBrains Mono',monospace;
+  background:rgba(37,99,235,.2);border:1px solid rgba(56,189,248,.3);
+  color:var(--sky);white-space:nowrap;
+}
+
+/* ─── FOOTER ─────────────────────────────────────────── */
+.footer{
+  position:relative;z-index:10;
+  text-align:center;
+  padding:20px;
+  color:var(--dim);font-size:11px;letter-spacing:.5px;
+  border-top:1px solid rgba(255,255,255,.06);
+  margin-top:40px;
+}
+
+/* responsive note */
+@media(max-width:1440px){.poster{width:100%;}}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+<div class="grid-bg"></div>
+
+<div class="poster">
+
+  <!-- ══ HEADER ══════════════════════════════════════════════════ -->
+  <div class="header">
+    <div class="proj-badge">Power BI · Star Schema · Data Model</div>
+    <h1>Patient Demographic Intelligence<br>&amp; Disease Pattern Analysis</h1>
+    <p>Complete Data Model Architecture · Microsoft Power BI · B.Tech III Year Mini Project 2024–25</p>
+    <div class="stats-row">
+      <div class="stat"><div class="stat-val">8</div><div class="stat-lbl">TABLES</div></div>
+      <div class="stat"><div class="stat-val">6</div><div class="stat-lbl">RELATIONSHIPS</div></div>
+      <div class="stat"><div class="stat-val">5,000</div><div class="stat-lbl">FACT ROWS</div></div>
+      <div class="stat"><div class="stat-val">1,000</div><div class="stat-lbl">PATIENTS</div></div>
+      <div class="stat"><div class="stat-val">15+</div><div class="stat-lbl">DAX MEASURES</div></div>
+      <div class="stat"><div class="stat-val">7</div><div class="stat-lbl">REPORT PAGES</div></div>
+    </div>
+  </div>
+
+  <!-- ══ SCHEMA ══════════════════════════════════════════════════ -->
+  <div class="schema" id="schema">
+
+    <!-- ROW 1 – Top Dimensions -->
+    <div class="row row-top" id="row1">
+
+      <!-- Dim_Date -->
+      <div class="tbl theme-date" id="dimDate">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(16,185,129,.2);">📅</div>
+          <div><div class="tbl-name">Dim_Date</div><div class="tbl-sub">DATE DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>DateKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>Date</div>
+          <div class="field"><span class="field-tag at">AT</span>Day</div>
+          <div class="field"><span class="field-tag at">AT</span>DayName</div>
+          <div class="field"><span class="field-tag at">AT</span>Month</div>
+          <div class="field"><span class="field-tag at">AT</span>MonthName</div>
+          <div class="field"><span class="field-tag at">AT</span>Quarter</div>
+          <div class="field"><span class="field-tag at">AT</span>Year</div>
+          <div class="field"><span class="field-tag at">AT</span>MonthYear</div>
+          <div class="field"><span class="field-tag at">AT</span>IsWeekend</div>
+        </div>
+      </div>
+
+      <!-- Dim_Patient -->
+      <div class="tbl theme-pat" id="dimPatient">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(20,184,166,.2);">🧑‍⚕️</div>
+          <div><div class="tbl-name">Dim_Patient</div><div class="tbl-sub">PATIENT DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>PatientKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>PatientName</div>
+          <div class="field"><span class="field-tag at">AT</span>Age</div>
+          <div class="field"><span class="field-tag at">AT</span>AgeGroup</div>
+          <div class="field"><span class="field-tag at">AT</span>Gender</div>
+          <div class="field"><span class="field-tag at">AT</span>BloodType</div>
+          <div class="field"><span class="field-tag at">AT</span>City</div>
+          <div class="field"><span class="field-tag at">AT</span>Region</div>
+        </div>
+      </div>
+
+      <!-- Dim_Hospital -->
+      <div class="tbl theme-hosp" id="dimHospital">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(139,92,246,.2);">🏥</div>
+          <div><div class="tbl-name">Dim_Hospital</div><div class="tbl-sub">HOSPITAL DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>HospitalKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>HospitalName</div>
+          <div class="field"><span class="field-tag at">AT</span>State</div>
+          <div class="field"><span class="field-tag at">AT</span>City</div>
+          <div class="field"><span class="field-tag at">AT</span>Region</div>
+          <div class="field"><span class="field-tag at">AT</span>BedCapacity</div>
+          <div class="field"><span class="field-tag at">AT</span>Established</div>
+        </div>
+      </div>
+
+      <!-- Dim_Disease -->
+      <div class="tbl theme-dis" id="dimDisease">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(244,63,94,.2);">🩺</div>
+          <div><div class="tbl-name">Dim_Disease</div><div class="tbl-sub">DISEASE DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>DiseaseKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>MedicalCondition</div>
+          <div class="field"><span class="field-tag at">AT</span>DiseaseCategory</div>
+          <div class="field"><span class="field-tag at">AT</span>ICDCode</div>
+          <div class="field"><span class="field-tag at">AT</span>RiskLevel</div>
+        </div>
+      </div>
+
+    </div><!-- /row1 -->
+
+    <!-- RELATIONSHIP LINES ROW1 → FACT -->
+    <svg class="rel-svg" width="1320" height="80" viewBox="0 0 1320 80" id="svg-top">
+      <!-- lines drawn by JS below -->
+    </svg>
+
+    <!-- ROW 2 – FACT TABLE (centre) -->
+    <div class="row" id="row2">
+      <div class="tbl fact theme-fact" id="factPatients">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(37,99,235,.3);font-size:16px;">⭐</div>
+          <div>
+            <div class="tbl-name" style="font-size:13px;">Fact_Patients</div>
+            <div class="tbl-sub">CENTRAL FACT TABLE · 5,000 rows</div>
+          </div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>FactID</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag fk">FK</span>PatientKey</div>
+          <div class="field"><span class="field-tag fk">FK</span>DateKey</div>
+          <div class="field"><span class="field-tag fk">FK</span>HospitalKey</div>
+          <div class="field"><span class="field-tag fk">FK</span>DiseaseKey</div>
+          <div class="field"><span class="field-tag fk">FK</span>DoctorKey</div>
+          <div class="field"><span class="field-tag fk">FK</span>InsuranceKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">M</span>AdmissionDate</div>
+          <div class="field"><span class="field-tag at">M</span>DischargeDate</div>
+          <div class="field"><span class="field-tag at">M</span>LengthOfStay</div>
+          <div class="field"><span class="field-tag at">M</span>AdmissionType</div>
+          <div class="field"><span class="field-tag at">M</span>BillingAmountINR</div>
+          <div class="field"><span class="field-tag at">M</span>TestResult</div>
+          <div class="field"><span class="field-tag at">M</span>RoomNumber</div>
+        </div>
+      </div>
+    </div><!-- /row2 -->
+
+    <!-- RELATIONSHIP LINES FACT → ROW3 -->
+    <svg class="rel-svg" width="1320" height="80" viewBox="0 0 1320 80" id="svg-bot">
+    </svg>
+
+    <!-- ROW 3 – Bottom Dimensions -->
+    <div class="row row-top" id="row3">
+
+      <!-- Dim_Doctor -->
+      <div class="tbl theme-doc" id="dimDoctor">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(245,158,11,.2);">👨‍⚕️</div>
+          <div><div class="tbl-name">Dim_Doctor</div><div class="tbl-sub">DOCTOR DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>DoctorKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>DoctorName</div>
+          <div class="field"><span class="field-tag at">AT</span>Specialisation</div>
+          <div class="field"><span class="field-tag at">AT</span>Qualification</div>
+          <div class="field"><span class="field-tag at">AT</span>ExperienceYears</div>
+          <div class="field"><span class="field-tag at">AT</span>PrimaryHospital</div>
+        </div>
+      </div>
+
+      <!-- Dim_Insurance -->
+      <div class="tbl theme-ins" id="dimInsurance">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(14,165,233,.2);">🛡️</div>
+          <div><div class="tbl-name">Dim_Insurance</div><div class="tbl-sub">INSURANCE DIMENSION</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field"><span class="field-tag pk">PK</span>InsuranceKey</div>
+          <div class="sep"></div>
+          <div class="field"><span class="field-tag at">AT</span>InsuranceProvider</div>
+          <div class="field"><span class="field-tag at">AT</span>InsuranceType</div>
+          <div class="field"><span class="field-tag at">AT</span>CoverageLevel</div>
+          <div class="field"><span class="field-tag at">AT</span>MaxCoverageINR</div>
+          <div class="field"><span class="field-tag at">AT</span>PremiumINR</div>
+        </div>
+      </div>
+
+      <!-- _Measures -->
+      <div class="tbl theme-meas" id="dimMeasures">
+        <div class="tbl-header">
+          <div class="tbl-icon" style="background:rgba(107,114,128,.3);">∑</div>
+          <div><div class="tbl-name">_Measures</div><div class="tbl-sub">DAX MEASURE TABLE</div></div>
+        </div>
+        <div class="tbl-body">
+          <div class="field" style="font-size:9.5px;color:var(--dim);">Total Patients</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">Avg Billing (INR)</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">Avg Length of Stay</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">Emergency Adm. %</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">Disease Prevalence %</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">YTD Patients</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">YoY Growth %</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">MoM Growth %</div>
+          <div class="field" style="font-size:9.5px;color:var(--dim);">+ 7 more measures</div>
+        </div>
+      </div>
+
+    </div><!-- /row3 -->
+
+    <!-- RELATIONSHIP ANNOTATIONS STRIP -->
+    <div style="position:relative;z-index:10;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:16px;">
+      <span style="font-size:11px;color:var(--dim);margin-right:8px;align-self:center;">Relationships:</span>
+      <span class="rel-badge">Fact → Dim_Patient (M:1)</span>
+      <span class="rel-badge">Fact → Dim_Date (M:1)</span>
+      <span class="rel-badge">Fact → Dim_Hospital (M:1)</span>
+      <span class="rel-badge">Fact → Dim_Disease (M:1)</span>
+      <span class="rel-badge">Fact → Dim_Doctor (M:1)</span>
+      <span class="rel-badge">Fact → Dim_Insurance (M:1)</span>
+    </div>
+
+  </div><!-- /schema -->
+
+  <!-- ══ DAX REFERENCE STRIP ═════════════════════════════════════ -->
+  <div style="position:relative;z-index:10;margin-top:40px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <span class="proj-badge">DAX Measures Quick Reference</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+
+      <div style="background:rgba(13,27,62,.8);border:1px solid rgba(56,189,248,.2);border-radius:12px;padding:16px;">
+        <div style="font-size:10px;color:var(--sky);font-weight:700;letter-spacing:1px;margin-bottom:10px;">📊 CORE KPIs</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8D5A3;line-height:2;">
+          Total Patients = COUNTROWS(Fact_Patients)<br>
+          Avg Billing = AVERAGE([BillingAmountINR])<br>
+          Avg LOS = AVERAGE([LengthOfStay])<br>
+          Total Billing = SUM([BillingAmountINR])
+        </div>
+      </div>
+
+      <div style="background:rgba(13,27,62,.8);border:1px solid rgba(139,92,246,.2);border-radius:12px;padding:16px;">
+        <div style="font-size:10px;color:#C4B5FD;font-weight:700;letter-spacing:1px;margin-bottom:10px;">⏱ TIME INTELLIGENCE</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8D5A3;line-height:2;">
+          YTD Patients = TOTALYTD([Total Patients], Dim_Date[Date])<br>
+          PYTD = CALCULATE([Total Patients], SAMEPERIODLASTYEAR(...))<br>
+          YoY % = DIVIDE([Total Patients]-[PYTD], [PYTD], 0)<br>
+          MoM % = DIVIDE(curr - prev, prev, 0)
+        </div>
+      </div>
+
+      <div style="background:rgba(13,27,62,.8);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:16px;">
+        <div style="font-size:10px;color:#6EE7B7;font-weight:700;letter-spacing:1px;margin-bottom:10px;">🔢 ADMISSION SPLITS</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8D5A3;line-height:2;">
+          Emergency % = DIVIDE(CALCULATE([Total Patients],<br>
+          &nbsp;&nbsp;[AdmissionType]="Emergency"), [Total Patients], 0)<br>
+          Disease Prev % = DIVIDE([Total Patients],<br>
+          &nbsp;&nbsp;CALCULATE([Total Patients], ALL(Dim_Disease)), 0)
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ LEGEND ═══════════════════════════════════════════════════ -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--gold);border:1px solid rgba(245,158,11,.5);"></div>
+      <span>PK = Primary Key</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(37,99,235,.5);border:1px solid #3B82F6;"></div>
+      <span>FK = Foreign Key</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:rgba(16,185,129,.3);border:1px solid var(--mint);"></div>
+      <span>AT/M = Attribute / Measure Field</span>
+    </div>
+    <div class="legend-item" style="margin-left:20px;">
+      <svg width="40" height="12"><line x1="0" y1="6" x2="40" y2="6" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4 2"/></svg>
+      <span>Many-to-One (M:1) Relationship</span>
+    </div>
+    <div class="legend-item">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--sky);"></div>
+      <span>Many side (∞)</span>
+    </div>
+    <div class="legend-item">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--gold);"></div>
+      <span>One side (1)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:linear-gradient(135deg,#1D4ED8,#2563EB);"></div>
+      <span>⭐ Fact Table (Star Centre)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:linear-gradient(135deg,#374151,#4B5563);"></div>
+      <span>∑ Disconnected Measures Table</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Patient Demographic Intelligence &amp; Disease Pattern Analysis · Power BI Star Schema Data Model
+    · B.Tech III Year Mini Project · Department of Computer Science &amp; Engineering · 2024–2025
+  </div>
+
+</div><!-- /poster -->
+
+<script>
+// Draw animated SVG relationship lines
+(function(){
+  const colors = {
+    dimDate:'#10B981', dimPatient:'#14B8A6', dimHospital:'#8B5CF6',
+    dimDisease:'#F43F5E', dimDoctor:'#F59E0B', dimInsurance:'#0EA5E9'
+  };
+
+  function getCentreX(el){
+    const r = el.getBoundingClientRect();
+    const pr = el.closest('.poster').getBoundingClientRect();
+    return (r.left + r.width/2) - pr.left;
+  }
+  function getBottom(el){
+    const r = el.getBoundingClientRect();
+    const pr = el.closest('.poster').getBoundingClientRect();
+    return r.bottom - pr.top;
+  }
+  function getTop(el){
+    const r = el.getBoundingClientRect();
+    const pr = el.closest('.poster').getBoundingClientRect();
+    return r.top - pr.top;
+  }
+
+  setTimeout(()=>{
+    const poster = document.querySelector('.poster');
+    const fact = document.getElementById('factPatients');
+    const factX = getCentreX(fact);
+
+    // Top dims → Fact
+    const topDims = [
+      {id:'dimDate',color:colors.dimDate},
+      {id:'dimPatient',color:colors.dimPatient},
+      {id:'dimHospital',color:colors.dimHospital},
+      {id:'dimDisease',color:colors.dimDisease},
+    ];
+
+    const svgTop = document.getElementById('svg-top');
+    const svgTopRect = svgTop.getBoundingClientRect();
+    const posterRect = poster.getBoundingClientRect();
+    const svgTopOffY = svgTopRect.top - posterRect.top;
+
+    topDims.forEach((d,i)=>{
+      const el = document.getElementById(d.id);
+      const dimX = getCentreX(el) - 40;
+      const startY = 0;
+      const endY = 80;
+      const midY = 40;
+      const path = `M ${dimX} ${startY} C ${dimX} ${midY}, ${factX} ${midY}, ${factX} ${endY}`;
+      const delay = i * 0.2;
+      svgTop.innerHTML += `
+        <path d="${path}" stroke="${d.color}" stroke-width="2" fill="none" stroke-dasharray="5 3"
+              stroke-dashoffset="300" style="animation:drawLine 1.2s ${delay}s ease forwards"/>
+        <circle cx="${dimX}" cy="${startY+4}" r="5" fill="${d.color}" opacity="0"
+                style="animation:pop .3s ${delay+1}s ease forwards"/>
+        <circle cx="${factX}" cy="${endY-4}" r="4" fill="#F59E0B" opacity="0"
+                style="animation:pop .3s ${delay+1}s ease forwards"/>
+        <text x="${(dimX+factX)/2}" y="${midY-6}" fill="${d.color}" font-size="8"
+              font-family="JetBrains Mono,monospace" text-anchor="middle" opacity=".8">M:1</text>
+      `;
+    });
+
+    // Fact → Bottom dims
+    const botDims = [
+      {id:'dimDoctor',color:colors.dimDoctor},
+      {id:'dimInsurance',color:colors.dimInsurance},
+    ];
+
+    const svgBot = document.getElementById('svg-bot');
+    botDims.forEach((d,i)=>{
+      const el = document.getElementById(d.id);
+      const dimX = getCentreX(el) - 40;
+      const startY = 0;
+      const endY = 80;
+      const midY = 40;
+      const path = `M ${factX} ${startY} C ${factX} ${midY}, ${dimX} ${midY}, ${dimX} ${endY}`;
+      const delay = 0.8 + i * 0.2;
+      svgBot.innerHTML += `
+        <path d="${path}" stroke="${d.color}" stroke-width="2" fill="none" stroke-dasharray="5 3"
+              stroke-dashoffset="300" style="animation:drawLine 1.2s ${delay}s ease forwards"/>
+        <circle cx="${factX}" cy="${startY+4}" r="5" fill="${d.color}" opacity="0"
+                style="animation:pop .3s ${delay+1}s ease forwards"/>
+        <circle cx="${dimX}" cy="${endY-4}" r="4" fill="#F59E0B" opacity="0"
+                style="animation:pop .3s ${delay+1}s ease forwards"/>
+        <text x="${(dimX+factX)/2}" y="${midY-6}" fill="${d.color}" font-size="8"
+              font-family="JetBrains Mono,monospace" text-anchor="middle" opacity=".8">M:1</text>
+      `;
+    });
+
+  }, 300);
+})();
+</script>
+</body>
+</html>
